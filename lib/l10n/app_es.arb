@@ -13441,16 +13441,12 @@
     "@kostvMusicArtists": {"description": "Kos TV Music: search results."},
     "kostvMusicSongs": "Canciones",
     "@kostvMusicSongs": {"description": "Kos TV Music: search results."},
-    "kostvMusicAlbumsAtHome": "Álbumes en casa",
-    "@kostvMusicAlbumsAtHome": {"description": "Kos TV Music: search results."},
     "kostvMusicToAsk": "Para pedir",
     "@kostvMusicToAsk": {"description": "Kos TV Music: search results that aren't at home."},
     "kostvMusicToAskWhy": "No están en casa: pide el álbum y llegará solo",
     "@kostvMusicToAskWhy": {"description": "Kos TV Music: line under the results to ask for."},
     "kostvMusicNoResults": "No hay nada de «{query}»",
     "@kostvMusicNoResults": {"description": "Kos TV Music: a search with no results.", "placeholders": {"query": {"type": "String"}}},
-    "kostvMusicAtHome": "En casa",
-    "@kostvMusicAtHome": {"description": "Kos TV Music: badge of what the home server has."},
     "kostvMusicAsk": "Pedir",
     "@kostvMusicAsk": {"description": "Kos TV Music: badge of what can be asked for."},
     "kostvMusicAsked": "Pedido",
@@ -13461,8 +13457,6 @@
     "@kostvMusicListen": {"description": "Kos TV Music: play a song's preview."},
     "kostvMusicStop": "Parar",
     "@kostvMusicStop": {"description": "Kos TV Music: stop a song's preview."},
-    "kostvMusicAskAlbum": "Pedir el álbum",
-    "@kostvMusicAskAlbum": {"description": "Kos TV Music: the button of an album's page."},
     "kostvMusicAskWholeAlbum": "«{song}» está en el álbum «{album}»: se pide el álbum entero. Ocupa muy poco y así la música de casa crece.",
     "@kostvMusicAskWholeAlbum": {"description": "Kos TV Music: why the whole album is asked for a song.", "placeholders": {"song": {"type": "String"}, "album": {"type": "String"}}},
     "kostvMusicAskAlbumWhy": "Se pide el álbum entero: ocupa muy poco y así la música de casa crece.",
@@ -13493,12 +13487,8 @@
     "@kostvMusicEmptyListening": {"description": "Kos TV Music: no listening history yet."},
     "kostvMusicDiscography": "Discografía",
     "@kostvMusicDiscography": {"description": "Kos TV Music: an artist's records."},
-    "kostvMusicArtistTopSongs": "Sus canciones más escuchadas",
-    "@kostvMusicArtistTopSongs": {"description": "Kos TV Music: an artist's top songs."},
     "kostvMusicSimilar": "Artistas parecidos",
     "@kostvMusicSimilar": {"description": "Kos TV Music: similar artists."},
-    "kostvMusicArtistHave": "Tienes {have} de {total} álbumes",
-    "@kostvMusicArtistHave": {"description": "Kos TV Music: how many of an artist's albums are at home.", "placeholders": {"have": {"type": "int"}, "total": {"type": "int"}}},
     "kostvMusicNotFoundAtHome": "No se encuentra esa canción en casa",
     "@kostvMusicNotFoundAtHome": {"description": "Kos TV Music: a chart's song said to be at home but not found."},
     "kostvMusicShowButton": "Botón de Música",
@@ -15611,10 +15601,6 @@
             }
         }
     },
-    "kostvMusicDailyMixLabel": "Mix diario",
-    "@kostvMusicDailyMixLabel": {
-        "description": "Kos TV Music page: the small label on a daily mix's cover."
-    },
     "kostvMusicMixAddedNext": "El mix sonará a continuación",
     "@kostvMusicMixAddedNext": {
         "description": "Kos TV Music page: said after a daily mix is put next in the queue."
@@ -15893,10 +15879,6 @@
     "@kostvStreamPreparing": {
         "description": "Kos TV «Toda la música»: Reproduciendo and the floating player while a song that isn't at home is being got ready by the requests service"
     },
-    "kostvStreamPreparingHint": "No está en casa: la estamos preparando para que la escuches. Tarda unos segundos",
-    "@kostvStreamPreparingHint": {
-        "description": "Kos TV «Toda la música»: under «Preparando la canción…» in Reproduciendo"
-    },
     "kostvStreamPreparingSlow": "Está tardando más de lo normal",
     "@kostvStreamPreparingSlow": {
         "description": "Kos TV «Toda la música»: in place of the hint after 20 seconds of getting the song ready"
@@ -15909,10 +15891,6 @@
     "@kostvStreamUnavailableNow": {
         "description": "Kos TV «Toda la música»: notice when the requests service or its sources don't answer; the song's name goes under it"
     },
-    "kostvStreamNotAtHome": "No está en casa · en streaming",
-    "@kostvStreamNotAtHome": {
-        "description": "Kos TV «Toda la música»: the pill in Reproduciendo for a song heard through the requests service"
-    },
     "kostvStreamAskAlbum": "Pedir álbum",
     "@kostvStreamAskAlbum": {
         "description": "Kos TV «Toda la música»: the button next to the pill in Reproduciendo: asks for the song's album to be brought home"
@@ -15920,10 +15898,6 @@
     "kostvStreamOutOfHome": "No está en casa",
     "@kostvStreamOutOfHome": {
         "description": "Kos TV «Toda la música»: tooltip of the small icon on the queue's songs that aren't at home"
-    },
-    "kostvStreamAlbumNote": "Este disco no está en casa · se escucha en streaming",
-    "@kostvStreamAlbumNote": {
-        "description": "Kos TV «Toda la música»: on the page of an album that isn't at home, when it can be listened to"
     },
     "kostvMusicCatalog": "Qué música enseñar",
     "@kostvMusicCatalog": {
@@ -15945,10 +15919,6 @@
     "@kostvMusicCatalogHomeHint": {
         "description": "Kos TV «Toda la música»: under the option «Solo la de casa»"
     },
-    "kostvStreamMoreAlbums": "Más álbumes",
-    "@kostvStreamMoreAlbums": {"description": "Kos TV «Toda la música»: search shelf of albums that are not at home"},
-    "kostvStreamMoreAlbumsWhy": "No están en casa: se escuchan en streaming",
-    "@kostvStreamMoreAlbumsWhy": {"description": "Kos TV «Toda la música»: under «Más álbumes» in the search"},
     "kostvStreamDislikedOutOfHome": "{artist} · No está en casa",
     "@kostvStreamDislikedOutOfHome": {"description": "Kos TV «Toda la música»: a disliked song that is not at home, in Settings", "placeholders": {"artist": {"type": "String"}}},
     "kostvStreamStationEmpty": "No hay canciones para esta emisora ahora mismo",
@@ -15967,8 +15937,6 @@
     "@kostvAwayPlaylistFull": {"description": "Kos TV «Toda la música»: the server plugin keeps at most 500 songs that are not at home per playlist"},
     "kostvAwayFavoritesFull": "Ya tienes 2000 favoritas que no están en casa: quita alguna para añadir más",
     "@kostvAwayFavoritesFull": {"description": "Kos TV «Toda la música»: the server plugin keeps at most 2000 ♥ of songs that are not at home per person"},
-    "kostvStreamArtistLine": "{artist} · en streaming",
-    "@kostvStreamArtistLine": {"description": "Kos TV «Toda la música»: the artist line of a song that isn't at home in the phone's notification, the lock screen, the car and the browser's media controls", "placeholders": {"artist": {"type": "String"}}},
     "kostvStreamOnlyLine": "En streaming",
     "@kostvStreamOnlyLine": {"description": "Kos TV «Toda la música»: the same line when the song that isn't at home has no artist"},
     "kostvAwayLovedAskAlbum": "Añadida a tus favoritas. ¿Pedir el álbum para tenerla en casa?",
@@ -16058,5 +16026,11 @@
     "kostvPlayerQueueTab": "Cola",
     "@kostvPlayerQueueTab": {"description": "Kos TV music design: the tab of the player's side panel (computer) that shows the queue"},
     "kostvPlayerClearQueue": "Vaciar",
-    "@kostvPlayerClearQueue": {"description": "Kos TV music design: button next to «A continuación» in the queue that takes away every song to come"}
+    "@kostvPlayerClearQueue": {"description": "Kos TV music design: button next to «A continuación» in the queue that takes away every song to come"},
+    "kostvPlayerQueueCleared": "{count, plural, =1{Has vaciado la cola: 1 canción} other{Has vaciado la cola: {count} canciones}}",
+    "@kostvPlayerQueueCleared": {"description": "Kos TV music: notice after «Vaciar» in the queue, with «Deshacer» to put the songs back", "placeholders": {"count": {"type": "int"}}},
+    "kostvMusicListsFailed": "No se han podido cargar tus listas.",
+    "@kostvMusicListsFailed": {"description": "Kos TV Music home: «Tus listas» tab when reading the playlists failed (with «Reintentar»)"},
+    "kostvMusicKindSongAlone": "Canción",
+    "@kostvMusicKindSongAlone": {"description": "Kos TV Music search: line under a song that is the top result when it has no artist (kostvMusicKindSong otherwise)"}
 }

@@ -331,7 +331,9 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
               const SizedBox(height: 24),
               if (detail == null && _loading)
                 const Center(
-                  child: CircularProgressIndicator(color: kostvMusicColor),
+                  child: CircularProgressIndicator(
+                    color: KostvMusicTokens.violet,
+                  ),
                 )
               else if (detail == null)
                 // Kos TV: why, and a button to read it again, which the

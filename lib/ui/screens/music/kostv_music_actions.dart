@@ -147,6 +147,18 @@ Future<AggregatedItem?> _albumAtHome(
   return null;
 }
 
+/// Kos TV: the home server's copy of the requests service's [album] that is
+/// at home under an id the service doesn't give, looked for by its name
+/// (and, for a single, the album it is in); null when it isn't found.
+Future<AggregatedItem?> kostvHomeAlbumOf(StremfinAlbum album) async {
+  var match = await _albumAtHome(album.title, album.artist);
+  final inside = album.songInAlbum;
+  if (match == null && inside != null) {
+    match = await _albumAtHome(inside, album.artist);
+  }
+  return match;
+}
+
 /// An album the requests service knows: at home, its page there; otherwise
 /// its page to ask for it.
 ///

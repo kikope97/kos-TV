@@ -4,12 +4,14 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:moonfin_design/moonfin_design.dart' show GlassSettings;
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/destinations.dart';
@@ -486,21 +488,29 @@ class _TouchCapsuleState extends State<_TouchCapsule> {
                     onTap: music.next,
                   ),
                   // Kos TV: on the computer, the ✕ that stops the music
-                  // shows with the mouse over the capsule (the phone's is
-                  // swiped away).
+                  // shows with the mouse over the capsule, and always with
+                  // a finger (a touch screen on the web: nothing hovers
+                  // there). The phone's is swiped away.
                   if (!mobile)
-                    AnimatedOpacity(
-                      opacity: _hovered ? 1 : 0,
-                      duration: const Duration(milliseconds: 160),
-                      child: IgnorePointer(
-                        ignoring: !_hovered,
-                        child: _CapsuleButton(
-                          icon: Icons.close_rounded,
-                          tooltip: l10n.kostvNowPlayingClose,
-                          small: true,
-                          onTap: music.close,
-                        ),
-                      ),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: InputModeTracker.touchInUse,
+                      builder: (context, touch, _) {
+                        final shown = _hovered || touch;
+                        return AnimatedOpacity(
+                          opacity: shown ? 1 : 0,
+                          duration: const Duration(milliseconds: 160),
+                          child: IgnorePointer(
+                            ignoring: !shown,
+                            child: _CapsuleButton(
+                              key: const ValueKey('kostv-capsule-close'),
+                              icon: Icons.close_rounded,
+                              tooltip: l10n.kostvNowPlayingClose,
+                              small: true,
+                              onTap: music.close,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                 ],
               ),
@@ -520,6 +530,10 @@ class _TouchCapsuleState extends State<_TouchCapsule> {
       container: true,
       button: true,
       label: '${l10n.kostvNowPlaying}: ${item.name}',
+      // Kos TV: what the swipe (or the ✕) does, for a screen reader too.
+      customSemanticsActions: {
+        CustomSemanticsAction(label: l10n.kostvNowPlayingClose): music.close,
+      },
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _hovered = true),
@@ -782,6 +796,7 @@ class KostvCapsuleTitles extends StatelessWidget {
 
 class _CapsuleButton extends StatelessWidget {
   const _CapsuleButton({
+    super.key,
     required this.icon,
     required this.tooltip,
     required this.onTap,

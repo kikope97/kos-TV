@@ -1,18 +1,26 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../auth/repositories/user_repository.dart';
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart' show KostvMusicSource;
 import '../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/platform_detection.dart';
+import '../../navigation/destinations.dart';
 import '../../widgets/add_to_playlist_dialog.dart';
+import '../../widgets/change_artwork_dialog.dart';
+import '../../widgets/identify_dialog.dart';
+import '../../widgets/overlay_sheet.dart' show showFocusRestoringDialog;
 import '../../widgets/music/design/kostv_music_design.dart';
 import '../../widgets/music/kostv_music_menu.dart';
 import '../../widgets/music/music_navigation.dart';
+import '../admin/admin_nav.dart' show adminServerSupported;
+import '../detail/detail_admin_actions.dart';
 import 'kostv_music_actions.dart';
 import 'kostv_music_album_play.dart';
 import 'kostv_music_dislike.dart';
@@ -21,13 +29,22 @@ import 'kostv_music_page.dart';
 import 'kostv_music_widgets.dart';
 import '../../../util/kostv_browser_menu.dart';
 
-enum _ArtistChoice { playlist, dislike }
+enum _ArtistChoice {
+  playlist,
+  dislike,
+  biography,
+  identify,
+  editMetadata,
+  changeArtwork,
+}
 
 /// Kos TV: an artist of the home server, as the page of an artist the
 /// requests service knows (`docs/diseno-musica`): their picture big at the
 /// top, their name in the brand's letters, the play button, «Aleatorio»,
-/// ♥ and «⋯» (add them to a list, «No me pongas a este artista»), their
-/// most played songs, their albums (each with its ▶) and similar artists.
+/// ♥ and «⋯» (add them to a list, «No me pongas a este artista», their whole
+/// biography and, for an administrator, what the generic page offered:
+/// identify, edit the metadata, change the picture), their most played
+/// songs, their albums (each with its ▶) and similar artists.
 class KostvHomeArtistView extends StatefulWidget {
   const KostvHomeArtistView({
     super.key,
@@ -99,10 +116,69 @@ class _KostvHomeArtistViewState extends State<KostvHomeArtistView> {
     );
   }
 
+  /// Kos TV: what an administrator could do from the generic page (not
+  /// deleting an artist: the server doesn't let one go that way).
+  Set<DetailAdminAction> _admin(AggregatedItem artist) {
+    final admin =
+        GetIt.instance.isRegistered<UserRepository>() &&
+        (GetIt.instance<UserRepository>().currentUser?.isAdministrator ??
+            false);
+    if (!admin) return const {};
+    return detailAdminActions(
+      isAdministrator: true,
+      isTV: PlatformDetection.isTV,
+      itemType: artist.type,
+      canDelete: false,
+      adminPanel: adminServerSupported(),
+    );
+  }
+
+  String? _about(AggregatedItem artist) {
+    final about = artist.overview?.trim();
+    return about == null || about.isEmpty ? null : about;
+  }
+
+  /// Kos TV: the artist's whole biography (the page shows three lines).
+  Future<void> _biography(AggregatedItem artist, String about) {
+    final l10n = AppLocalizations.of(context);
+    return showFocusRestoringDialog<void>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1F),
+        title: Text(
+          artist.name,
+          style: KostvMusicType.title(PlatformDetection.isTV ? 28 : 22),
+        ),
+        content: SizedBox(
+          width: 640,
+          child: SingleChildScrollView(
+            child: Text(
+              about,
+              style: const TextStyle(
+                color: KostvMusicTokens.ink,
+                fontSize: 16,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            autofocus: true,
+            onPressed: () => Navigator.of(dialog).pop(),
+            child: Text(l10n.close),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _more(AggregatedItem artist) async {
     final l10n = AppLocalizations.of(context);
     final canDislike = kostvMusicCanDislike(artist);
     final disliked = canDislike && kostvMusicDisliked(artist.id, artist);
+    final about = _about(artist);
+    final admin = _admin(artist);
     final choice = await showKostvMusicMenu<_ArtistChoice>(
       context,
       title: artist.name,
@@ -119,10 +195,57 @@ class _KostvHomeArtistViewState extends State<KostvHomeArtistView> {
             Icons.person_off_outlined,
             disliked ? l10n.kostvMusicUndislike : l10n.kostvMusicDislikeArtist,
           ),
+        if (about != null)
+          KostvMenuEntry(
+            _ArtistChoice.biography,
+            Icons.notes_rounded,
+            l10n.biography,
+          ),
+        if (admin.contains(DetailAdminAction.identify))
+          KostvMenuEntry(
+            _ArtistChoice.identify,
+            Icons.search_rounded,
+            l10n.adminMetadataIdentify,
+          ),
+        if (admin.contains(DetailAdminAction.editMetadata))
+          KostvMenuEntry(
+            _ArtistChoice.editMetadata,
+            Icons.edit_note_rounded,
+            l10n.editMetadata,
+          ),
+        if (admin.contains(DetailAdminAction.changeArtwork))
+          KostvMenuEntry(
+            _ArtistChoice.changeArtwork,
+            Icons.image_outlined,
+            l10n.changeArtwork,
+          ),
       ],
     );
     if (choice == null || !mounted) return;
     switch (choice) {
+      case _ArtistChoice.biography:
+        await _biography(artist, about!);
+      case _ArtistChoice.identify:
+        final identified = await IdentifyDialog.show(
+          context,
+          itemId: artist.id,
+          itemType: artist.type,
+          itemName: artist.name,
+        );
+        if (identified == null || !mounted) return;
+        if (identified == artist.id) {
+          unawaited(_vm.reloadAll());
+        } else {
+          // The match gave it a new id, and the old one is gone.
+          context.pushReplacement(
+            Destinations.item(identified, serverId: artist.serverId),
+          );
+        }
+      case _ArtistChoice.editMetadata:
+        unawaited(context.push(Destinations.adminMetadata(artist.id)));
+      case _ArtistChoice.changeArtwork:
+        final changed = await ChangeArtworkDialog.show(context, item: artist);
+        if (changed == true && mounted) unawaited(_vm.load());
       case _ArtistChoice.playlist:
         await AddToPlaylistDialog.show(
           context,
@@ -242,7 +365,10 @@ class _KostvHomeArtistViewState extends State<KostvHomeArtistView> {
                 diameter: diameter,
                 onTap: () => unawaited(_vm.toggleFavorite()),
               ),
-              if (tracks.isNotEmpty || kostvMusicCanDislike(artist))
+              if (tracks.isNotEmpty ||
+                  kostvMusicCanDislike(artist) ||
+                  _about(artist) != null ||
+                  _admin(artist).isNotEmpty)
                 (diameter) => KostvRoundButton(
                   icon: Icons.more_horiz_rounded,
                   tooltip: l10n.more,
@@ -259,14 +385,23 @@ class _KostvHomeArtistViewState extends State<KostvHomeArtistView> {
                 alignment: Alignment.centerLeft,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 720),
-                  child: Text(
-                    about,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: KostvMusicTokens.muted,
-                      fontSize: 15,
-                      height: 1.4,
+                  // Kos TV: a tap or a click reads it whole (with the
+                  // remote, from «⋯»).
+                  child: GestureDetector(
+                    key: const ValueKey('kostv-artist-about'),
+                    onTap: () => unawaited(_biography(artist, about)),
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: Text(
+                        about,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: KostvMusicTokens.muted,
+                          fontSize: 15,
+                          height: 1.4,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -310,7 +445,7 @@ class _KostvHomeArtistViewState extends State<KostvHomeArtistView> {
             const SizedBox(height: 30),
           ] else if (_vm.state == ItemDetailState.loading) ...[
             const Center(
-              child: CircularProgressIndicator(color: kostvMusicColor),
+              child: CircularProgressIndicator(color: KostvMusicTokens.violet),
             ),
             const SizedBox(height: 30),
           ],

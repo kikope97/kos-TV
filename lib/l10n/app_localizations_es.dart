@@ -19469,9 +19469,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get kostvMusicSongs => 'Canciones';
 
   @override
-  String get kostvMusicAlbumsAtHome => 'Álbumes en casa';
-
-  @override
   String get kostvMusicToAsk => 'Para pedir';
 
   @override
@@ -19482,9 +19479,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String kostvMusicNoResults(String query) {
     return 'No hay nada de «$query»';
   }
-
-  @override
-  String get kostvMusicAtHome => 'En casa';
 
   @override
   String get kostvMusicAsk => 'Pedir';
@@ -19500,9 +19494,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvMusicStop => 'Parar';
-
-  @override
-  String get kostvMusicAskAlbum => 'Pedir el álbum';
 
   @override
   String kostvMusicAskWholeAlbum(String song, String album) {
@@ -19566,15 +19557,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get kostvMusicDiscography => 'Discografía';
 
   @override
-  String get kostvMusicArtistTopSongs => 'Sus canciones más escuchadas';
-
-  @override
   String get kostvMusicSimilar => 'Artistas parecidos';
-
-  @override
-  String kostvMusicArtistHave(int have, int total) {
-    return 'Tienes $have de $total álbumes';
-  }
 
   @override
   String get kostvMusicNotFoundAtHome => 'No se encuentra esa canción en casa';
@@ -21317,9 +21300,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get kostvMusicDailyMixLabel => 'Mix diario';
-
-  @override
   String get kostvMusicMixAddedNext => 'El mix sonará a continuación';
 
   @override
@@ -21541,10 +21521,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get kostvStreamPreparing => 'Preparando la canción…';
 
   @override
-  String get kostvStreamPreparingHint =>
-      'No está en casa: la estamos preparando para que la escuches. Tarda unos segundos';
-
-  @override
   String get kostvStreamPreparingSlow => 'Está tardando más de lo normal';
 
   @override
@@ -21555,17 +21531,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'Ahora no se puede escuchar. Prueba más tarde';
 
   @override
-  String get kostvStreamNotAtHome => 'No está en casa · en streaming';
-
-  @override
   String get kostvStreamAskAlbum => 'Pedir álbum';
 
   @override
   String get kostvStreamOutOfHome => 'No está en casa';
-
-  @override
-  String get kostvStreamAlbumNote =>
-      'Este disco no está en casa · se escucha en streaming';
 
   @override
   String get kostvMusicCatalog => 'Qué música enseñar';
@@ -21583,13 +21552,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvMusicCatalogHomeHint =>
       'Solo la que ya está en el servidor de casa, como siempre';
-
-  @override
-  String get kostvStreamMoreAlbums => 'Más álbumes';
-
-  @override
-  String get kostvStreamMoreAlbumsWhy =>
-      'No están en casa: se escuchan en streaming';
 
   @override
   String kostvStreamDislikedOutOfHome(String artist) {
@@ -21625,11 +21587,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvAwayFavoritesFull =>
       'Ya tienes 2000 favoritas que no están en casa: quita alguna para añadir más';
-
-  @override
-  String kostvStreamArtistLine(String artist) {
-    return '$artist · en streaming';
-  }
 
   @override
   String get kostvStreamOnlyLine => 'En streaming';
@@ -21786,4 +21743,21 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvPlayerClearQueue => 'Vaciar';
+
+  @override
+  String kostvPlayerQueueCleared(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Has vaciado la cola: $count canciones',
+      one: 'Has vaciado la cola: 1 canción',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvMusicListsFailed => 'No se han podido cargar tus listas.';
+
+  @override
+  String get kostvMusicKindSongAlone => 'Canción';
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show SynchronousFuture;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -371,6 +372,221 @@ void main() {
       final wash = KostvArtworkColors.wash(const Color(0xFF36E58C));
       expect(wash.color, KostvMusicTokens.background);
       expect(wash.gradient, isA<RadialGradient>());
+    });
+  });
+
+  group('Kos TV: a card\'s ▶ with a finger', () {
+    setUp(() => InputModeTracker.touchInUse.value = false);
+    tearDown(() {
+      PlatformDetection.setInterfaceLayout(InterfaceLayout.automatic);
+      InputModeTracker.touchInUse.value = false;
+    });
+
+    double playOpacity(WidgetTester tester) => tester
+        .widget<AnimatedOpacity>(
+          find.ancestor(
+            of: find.byType(KostvPlayFace),
+            matching: find.byType(AnimatedOpacity),
+          ),
+        )
+        .opacity;
+
+    testWidgets('on the phone the ▶ stays on it, smaller, and a tap on it '
+        'plays; the rest of the card opens', (tester) async {
+      PlatformDetection.setInterfaceLayout(InterfaceLayout.phone);
+      var opened = 0;
+      var played = 0;
+      await tester.pumpWidget(
+        _app(
+          KostvMusicAlbumTile(
+            title: 'Faroles',
+            size: 150,
+            onTap: () => opened++,
+            onPlay: () => played++,
+          ),
+        ),
+      );
+      expect(playOpacity(tester), 1);
+      expect(tester.getSize(find.byType(KostvPlayFace)).width, 30);
+      await tester.tap(find.byType(KostvPlayFace));
+      expect((opened, played), (0, 1));
+      await tester.tap(find.text('Faroles'));
+      expect((opened, played), (1, 1));
+    });
+
+    testWidgets('on the phone, a card that only opens has no ▶', (
+      tester,
+    ) async {
+      PlatformDetection.setInterfaceLayout(InterfaceLayout.phone);
+      await tester.pumpWidget(
+        _app(KostvMusicAlbumTile(title: 'Faroles', size: 150, onTap: () {})),
+      );
+      expect(playOpacity(tester), 0);
+    });
+
+    testWidgets('on the web, a finger on the screen shows it; the mouse '
+        'hides it again', (tester) async {
+      PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
+      var played = 0;
+      await tester.pumpWidget(
+        _app(
+          KostvMusicAlbumTile(
+            title: 'Faroles',
+            size: 190,
+            onTap: () {},
+            onPlay: () => played++,
+          ),
+        ),
+      );
+      expect(playOpacity(tester), 0);
+      // A finger anywhere (here on the title, which opens it).
+      await tester.tap(find.text('Faroles'));
+      await tester.pumpAndSettle();
+      expect(InputModeTracker.touchInUse.value, isTrue);
+      expect(playOpacity(tester), 1);
+      await tester.tap(find.byType(KostvPlayFace));
+      expect(played, 1);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: const Offset(1, 1));
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(const Offset(2, 2));
+      await tester.pumpAndSettle();
+      expect(InputModeTracker.touchInUse.value, isFalse);
+      expect(playOpacity(tester), 0);
+    });
+
+    testWidgets('on the TV OK opens it, and its menu (OK held down) has '
+        '«Reproducir»', (tester) async {
+      PlatformDetection.setTvMode(true);
+      var opened = 0;
+      var played = 0;
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      await tester.pumpWidget(
+        _app(
+          KostvMusicAlbumTile(
+            title: 'Faroles',
+            size: 172,
+            focusNode: node,
+            onTap: () => opened++,
+            onPlay: () => played++,
+          ),
+        ),
+      );
+      node.requestFocus();
+      await tester.pumpAndSettle();
+      await tester.longPress(find.text('Faroles'));
+      await tester.pumpAndSettle();
+      expect(find.text('Reproducir'), findsOneWidget);
+      await tester.tap(find.text('Reproducir'));
+      await tester.pumpAndSettle();
+      expect((opened, played), (0, 1));
+    });
+  });
+
+  group('Kos TV: a row follows only its own song', () {
+    tearDown(KostvNowPlaying.instance.debugReset);
+
+    testWidgets('another song starting doesn\'t redraw it; its own does', (
+      tester,
+    ) async {
+      final music = KostvNowPlaying.instance..debugReset();
+      music.sounding.value = (id: null, playing: false);
+      await tester.pumpWidget(
+        _app(
+          Column(
+            children: [
+              KostvSongRow(title: 'Calle', soundingId: 'a', onTap: () {}),
+              KostvSongRow(title: 'Luna', soundingId: 'b', onTap: () {}),
+            ],
+          ),
+        ),
+      );
+      KostvSongRowFace face(String title) => tester.widget<KostvSongRowFace>(
+        find.ancestor(
+          of: find.text(title),
+          matching: find.byType(KostvSongRowFace),
+        ),
+      );
+      final luna = face('Luna');
+      music.sounding.value = (id: 'a', playing: true);
+      await tester.pump();
+      expect(face('Calle').sound, KostvSongSound.playing);
+      expect(identical(face('Luna'), luna), isTrue, reason: 'not redrawn');
+      music.sounding.value = (id: 'a', playing: false);
+      await tester.pump();
+      expect(face('Calle').sound, KostvSongSound.paused);
+      expect(identical(face('Luna'), luna), isTrue);
+      music.sounding.value = (id: 'b', playing: true);
+      await tester.pump();
+      expect(face('Calle').sound, KostvSongSound.none);
+      expect(face('Luna').sound, KostvSongSound.playing);
+    });
+
+    testWidgets('«⋯» always at hand where it is asked to be (the phone\'s '
+        'queue)', (tester) async {
+      var menu = 0;
+      await tester.pumpWidget(
+        _app(
+          KostvSongRow(
+            title: 'Calle',
+            onTap: () {},
+            onMenu: () => menu++,
+            menuAlways: true,
+          ),
+        ),
+      );
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      expect(menu, 1);
+    });
+  });
+
+  group('Kos TV: a cover\'s colours, by the picture', () {
+    tearDown(KostvArtworkColors.debugReset);
+
+    test('a home server\'s picture is read small, the same for every size', () {
+      const big =
+          'https://casa.example/Items/al1/Images/Primary?maxWidth=600&tag=t1&quality=90';
+      const player =
+          'https://casa.example/Items/al1/Images/Primary?maxHeight=96&tag=t1&quality=90';
+      final small = KostvArtworkColors.smallUrl(big);
+      expect(small, KostvArtworkColors.smallUrl(player));
+      expect(Uri.parse(small).queryParameters, {
+        'maxHeight': '96',
+        'quality': '90',
+        'tag': 't1',
+      });
+      const colors = KostvCoverColors(
+        top: Color(0xFF36E58C),
+        bottom: Color(0xFF0C2B5E),
+        accent: Color(0xFF36E58C),
+      );
+      // Known from the player's: the album's page has it at once.
+      KostvArtworkColors.debugPut(player, colors);
+      expect(KostvArtworkColors.cached(big), colors);
+    });
+
+    test('a Deezer picture at its small copy; any other as it is', () {
+      expect(
+        KostvArtworkColors.smallUrl(
+          'https://cdn-images.dzcdn.net/images/cover/abc/1000x1000-000000-80-0-0.jpg',
+        ),
+        'https://cdn-images.dzcdn.net/images/cover/abc/120x120-000000-80-0-0.jpg',
+      );
+      expect(
+        KostvArtworkColors.smallUrl('https://covers.example.org/a.jpg'),
+        'https://covers.example.org/a.jpg',
+      );
+    });
+
+    test('one that couldn\'t be read isn\'t waited for again for a while', () {
+      KostvArtworkColors.debugFail('https://covers.example.org/a.jpg');
+      final colors = KostvArtworkColors.of('https://covers.example.org/a.jpg');
+      expect(colors, isA<SynchronousFuture<KostvCoverColors>>());
+      expect(
+        KostvArtworkColors.cached('https://covers.example.org/a.jpg'),
+        isNull,
+      );
     });
   });
 }

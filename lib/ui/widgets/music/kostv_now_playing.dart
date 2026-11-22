@@ -216,6 +216,21 @@ class KostvNowPlaying extends ChangeNotifier {
 
   bool get playing => _manager?.state.isPlaying ?? false;
 
+  /// Kos TV: the id of the song sounding and whether it plays, apart from
+  /// everything else that changes here («preparando», autoplay, the
+  /// colours…): a song's row follows only this, and only redraws when its
+  /// own song starts or stops sounding (a page has many rows).
+  final sounding = ValueNotifier<({String? id, bool playing})>((
+    id: null,
+    playing: false,
+  ));
+
+  @override
+  void notifyListeners() {
+    sounding.value = (id: item?.id, playing: playing);
+    super.notifyListeners();
+  }
+
   PlayerState? get state => _manager?.state;
 
   String? artUrl(AggregatedItem item, {int maxHeight = 300}) {

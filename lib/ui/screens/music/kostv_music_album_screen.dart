@@ -157,7 +157,20 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
       if (arrived) {
         _arrivedTimer?.cancel();
         _arrivedTimer = Timer(const Duration(seconds: 4), () {
-          if (mounted) setState(() => _arrived = false);
+          if (!mounted) return;
+          // Kos TV: the remote on «Ya está en casa», which goes now: to
+          // «Reproducir», not nowhere.
+          final hadIt = _askFocus.hasFocus;
+          setState(() => _arrived = false);
+          if (!hadIt) return;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted || _askFocus.hasFocus) return;
+            final now = FocusManager.instance.primaryFocus;
+            final lost = now == null || now is FocusScopeNode;
+            if (lost && _playFocus.context?.mounted == true) {
+              _playFocus.requestFocus();
+            }
+          });
         });
       }
       unawaited(_readArtistPicture(detail.artistDeezerId));
@@ -307,7 +320,9 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
         showBackButton: true,
         child: album == null && _loading
             ? const Center(
-                child: CircularProgressIndicator(color: kostvMusicColor),
+                child: CircularProgressIndicator(
+                  color: KostvMusicTokens.violet,
+                ),
               )
             : album == null
             ? Center(child: _retry(context, autofocus: PlatformDetection.isTV))
@@ -419,9 +434,13 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
           ? (diameter) => KostvPlayButton(
               revealFromTop: true,
               key: const ValueKey('kostvAlbumPlayAtHome'),
+              // Kos TV: the same stop as «Reproducir» of one that isn't at
+              // home (where the remote goes when «Ya está en casa» goes).
+              focusNode: _playFocus,
               diameter: diameter,
               tooltip: l10n.kostvMusicPlayAtHome,
               autofocus: PlatformDetection.isTV,
+              onKey: toAsk,
               onTap: () {
                 unawaited(_preview.stop());
                 // Kos TV: from its own page: one found at home under no
@@ -627,7 +646,9 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
     if (_loading) {
       return const Padding(
         padding: EdgeInsets.all(30),
-        child: Center(child: CircularProgressIndicator(color: kostvMusicColor)),
+        child: Center(
+          child: CircularProgressIndicator(color: KostvMusicTokens.violet),
+        ),
       );
     }
     if (_error != null) {

@@ -181,23 +181,76 @@ class KostvMusicService {
   static bool _isMusicList(AggregatedItem list) =>
       list.rawData['MediaType'] == null || list.rawData['MediaType'] == 'Audio';
 
-  /// Kos TV: the albums at home by name (Music's «Álbumes» tab).
-  Future<List<AggregatedItem>> albums({int limit = 600}) => _get(
+  /// Kos TV: how many albums or artists the «Artistas» and «Álbumes» tabs
+  /// ask for at a time (the next ones as the grid comes near its end).
+  static const libraryPage = 200;
+
+  /// Kos TV: the albums at home by name (Music's «Álbumes» tab), [limit]
+  /// of them from [start].
+  Future<KostvMusicLibraryPage> albumsPage({
+    int start = 0,
+    int limit = libraryPage,
+  }) => _libraryPage(
     types: const ['MusicAlbum'],
-    sortBy: 'SortName',
+    start: start,
     limit: limit,
     fields:
         'PrimaryImageAspectRatio,SortName,ProductionYear,AlbumArtist,'
         'AlbumArtists,ChildCount',
   );
 
-  /// Kos TV: the artists at home by name (Music's «Artistas» tab).
-  Future<List<AggregatedItem>> artists({int limit = 600}) => _get(
+  /// Kos TV: the artists at home by name (Music's «Artistas» tab), [limit]
+  /// of them from [start].
+  Future<KostvMusicLibraryPage> artistsPage({
+    int start = 0,
+    int limit = libraryPage,
+  }) => _libraryPage(
     types: const ['MusicArtist'],
-    sortBy: 'SortName',
+    start: start,
     limit: limit,
     fields: 'PrimaryImageAspectRatio,SortName',
   );
+
+  /// Kos TV: the artists [ids] at home, in [ids]' order (those played
+  /// lately, first in the «Artistas» tab whichever page they are on).
+  Future<List<AggregatedItem>> artistsById(List<String> ids) async {
+    if (ids.isEmpty) return const [];
+    final found = await _get(
+      types: const ['MusicArtist'],
+      ids: ids,
+      fields: 'PrimaryImageAspectRatio,SortName',
+    );
+    final byId = {for (final artist in found) artist.id: artist};
+    return [for (final id in ids) ?byId[id]];
+  }
+
+  Future<KostvMusicLibraryPage> _libraryPage({
+    required List<String> types,
+    required int start,
+    required int limit,
+    required String fields,
+  }) async {
+    final response = await _client.itemsApi.getItems(
+      includeItemTypes: types,
+      recursive: true,
+      sortBy: 'SortName',
+      sortOrder: 'Ascending',
+      startIndex: start,
+      limit: limit,
+      fields: fields,
+      enableTotalRecordCount: true,
+    );
+    final items = _items(response);
+    final total = (response['TotalRecordCount'] as num?)?.toInt();
+    return (
+      items: items,
+      more:
+          items.isNotEmpty &&
+          (total != null
+              ? start + items.length < total
+              : items.length >= limit),
+    );
+  }
 
   /// Kos TV: the ids of the artists of what the person played lately, the
   /// latest first (the album's artists of each song, then its own).
@@ -435,3 +488,7 @@ AggregatedItem? kostvBestSong(
   }
   return wantedArtists.isEmpty ? sameTitle : null;
 }
+
+/// Kos TV: one page of the albums or artists at home: its items, and
+/// whether there are more after them.
+typedef KostvMusicLibraryPage = ({List<AggregatedItem> items, bool more});

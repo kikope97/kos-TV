@@ -124,6 +124,21 @@ void _offerUndo(
   });
 }
 
+/// Kos TV: the same notice with «Deshacer» for another music action that
+/// can be taken back («Vaciar» the queue): [message], and [undo] if the
+/// button is pressed within [kostvMusicDislikeUndoTime].
+void kostvMusicOfferUndo(
+  BuildContext context, {
+  required String message,
+  required void Function() undo,
+  FocusNode? orElse,
+}) => _offerUndo(
+  context,
+  message: message,
+  orElse: orElse,
+  undo: () async => undo(),
+);
+
 /// «No me gusta» of [song]: skipped if it is sounding, taken out of what is
 /// still to play, kept by the server plugin, and a few seconds to take it
 /// back. [orElse] takes the remote after the notice when what had it went

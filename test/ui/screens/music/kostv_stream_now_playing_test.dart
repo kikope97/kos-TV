@@ -283,6 +283,28 @@ void main() {
     });
   });
 
+  testWidgets('Kos TV: on the TV, the remote on «Pedir el álbum» when the '
+      'next song is at home (the line goes) goes to play/pause', (
+    tester,
+  ) async {
+    PlatformDetection.setTvMode(true);
+    manager.queueService.setQueue([_stream('1'), _home('h')]);
+    await open(tester, const Size(1920, 1080));
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 4 && !(focusedText() ?? '').contains('Pedir'); i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pumpAndSettle();
+    }
+    expect(
+      FocusManager.instance.primaryFocus?.debugLabel,
+      'NowPlayingAskAlbum',
+    );
+    manager.queueService.next(manual: true);
+    await tester.pumpAndSettle();
+    expect(find.text('Pedir el álbum'), findsNothing);
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'NowPlayingPlay');
+  });
+
   testWidgets('Kos TV: on the TV, the remote on ♥ when the next song (one '
       'that isn\'t at home, without ♥) comes goes to play/pause', (
     tester,

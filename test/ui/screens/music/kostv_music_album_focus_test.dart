@@ -80,6 +80,10 @@ class _Service implements HttpClientAdapter {
   Completer<void> answer = Completer<void>();
   var request = false;
 
+  /// Kos TV: it is at home once asked for (found there straight away).
+  var homeOnceAsked = false;
+  var asked = false;
+
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
@@ -87,6 +91,16 @@ class _Service implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     final path = options.uri.path.replaceFirst('/api/v1', '');
+    if (path == '/requests' && options.method == 'POST') {
+      asked = true;
+      return ResponseBody.fromString(
+        jsonEncode({'outcome': 'created', 'message': 'Pedido'}),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
     if (path == '/music/albums/al1') {
       await answer.future;
       return ResponseBody.fromString(
@@ -94,7 +108,8 @@ class _Service implements HttpClientAdapter {
           'deezer_id': 'al1',
           'title': 'Tormenta',
           'artist': 'Rayo',
-          'can_request': true,
+          'can_request': !(homeOnceAsked && asked),
+          if (homeOnceAsked && asked) 'library': {'in_jellyfin': true},
           if (request) 'request': {'id': 3, 'status': 'pending', 'mine': true},
           'songs': [
             {'deezer_id': '1', 'title': 'Trueno', 'position': 1},
@@ -312,5 +327,33 @@ void main() {
     expect(find.byTooltip('Reproducir'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     later.dispose();
+  });
+
+  testWidgets('Kos TV: on the TV, «Ya está en casa» going with the remote on '
+      'it: the remote goes to «Reproducir», not nowhere', (tester) async {
+    PlatformDetection.setTvMode(true);
+    server.homeOnceAsked = true;
+    await open(tester);
+    await answer(tester);
+    expect(focused(), 'kostvMusicAlbumPlay');
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(focused(), 'kostvMusicAsk');
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(server.asked, isTrue);
+    expect(find.text('Ya está en casa'), findsOneWidget);
+    expect(focused(), 'kostvMusicAsk');
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump();
+    expect(find.text('Ya está en casa'), findsNothing);
+    expect(focused(), 'kostvMusicAlbumPlay');
+    await tester.pumpWidget(const SizedBox());
+    // The service asks again whether the person may use it, every while.
+    service.dispose();
+    await tester.pump(const Duration(minutes: 3));
   });
 }
