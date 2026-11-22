@@ -102,12 +102,20 @@ public class KostvUpdatesController : ControllerBase
     /// admin made on the plugin page. Only that file, for 30 minutes.
     /// </summary>
     [HttpGet("Install/{token}/{kind}.apk")]
+    [HttpGet("/KosTV/Instalar/{token}/{kind}.apk")]
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public ActionResult Install([FromRoute] string token, [FromRoute] string kind)
     {
+        // The short address the panel shows says "tele" and "movil", in Spanish.
+        kind = kind?.ToLowerInvariant() switch
+        {
+            "tele" => KostvUpdates.KindTv,
+            "movil" => KostvUpdates.KindPhone,
+            var other => other ?? string.Empty
+        };
         var address = HttpContext?.Connection.RemoteIpAddress?.ToString() ?? "?";
         var result = KostvUpdates.IsKind(kind) ? _links.Use(token, address) : KostvInstallLinks.Result.Invalid;
         if (result == KostvInstallLinks.Result.TooMany)
@@ -323,8 +331,9 @@ public class KostvUpdatesController : ControllerBase
         return Ok(new InstallLinkDto
         {
             Expires = Iso(expires),
-            TvPath = $"/Moonfin/Kostv/Update/Install/{token}/{KostvUpdates.KindTv}.apk",
-            PhonePath = $"/Moonfin/Kostv/Update/Install/{token}/{KostvUpdates.KindPhone}.apk",
+            // The short form of Install, easier to type on a TV and without the internal name.
+            TvPath = $"/KosTV/Instalar/{token}/tele.apk",
+            PhonePath = $"/KosTV/Instalar/{token}/movil.apk",
             Available = _updates.Latest(KostvUpdates.KindTv, 0) != null
         });
     }

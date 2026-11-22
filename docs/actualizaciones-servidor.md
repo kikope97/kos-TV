@@ -31,6 +31,7 @@ Detalles añadidos al implementarlo en el complemento (no cambian nada de lo de 
 - `<id>` es el `VersionCode`. `Date` va en UTC con `Z`. `Notes` puede ser `""`.
 - `/Moonfin/Ping` devuelve además `kostvUpdates: true` (informativo; la app puede fiarse solo del `404`).
 - Los errores llevan `{ "Error": "texto en español" }`.
+- El enlace temporal tiene también una forma corta, que es la que enseña el panel (más fácil de escribir con el mando y sin el nombre interno): `GET /KosTV/Instalar/<código>/tele.apk` o `movil.apk`. El código son 8 letras y cifras sin confusiones (sin 0/O ni 1/I/L), sin distinguir mayúsculas.
 
 ### Rutas del panel (solo administradores, `RequiresElevation`)
 
@@ -48,7 +49,7 @@ Todas bajo `/Moonfin/Kostv/Update/Admin`, JSON con campos en PascalCase y errore
 | `POST Admin/Versions/{id}/Retire` `{ Retired: true\|false }` | Retira o vuelve a ofrecer |
 | `DELETE Admin/Versions/{id}` | Borra una versión con sus APK |
 | `POST Admin/Settings` `{ Keep?, SignerSha256? }` | Cuántas guardar (1-50, 10 por defecto) y, para corregir una primera subida equivocada, la huella a mano |
-| `POST Admin/InstallLink` | `{ Expires, TvPath, PhonePath, Available }`: el enlace temporal (30 min, 30 peticiones; 10 fallos por minuto y dirección → `429`) |
+| `POST Admin/InstallLink` | `{ Expires, TvPath, PhonePath, Available }`: el enlace temporal en su forma corta (`/KosTV/Instalar/<código>/tele.apk`, `…/movil.apk`); 30 min, 30 peticiones; 10 fallos por minuto y dirección → `429`. El panel lo junta con la «URL pública del servidor» (o la dirección del panel) y dibuja el QR en la página |
 
 Almacén: `<carpeta de datos del complemento>/kostv-updates/` con `index.json`, `versions/<VersionCode>/tv.apk` y `phone.apk`, y `uploads/` (las subidas a medias se borran a las 24 horas). La versión, el tipo (tele: `uses-feature android.software.leanback` obligatorio; el móvil lo declara no obligatorio) y la firma se leen del propio APK: manifiesto binario y bloque de firma v2/v3, con la firma y el resumen del archivo comprobados de verdad.
 

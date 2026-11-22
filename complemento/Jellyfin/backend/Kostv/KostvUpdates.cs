@@ -658,8 +658,18 @@ public sealed class KostvUpdates
             }
 
             Directory.CreateDirectory(staging);
-            File.Move(PartPath(tv.Id), Path.Combine(staging, KindTv + ".apk"));
-            File.Move(PartPath(phone.Id), Path.Combine(staging, KindPhone + ".apk"));
+            try
+            {
+                File.Move(PartPath(tv.Id), Path.Combine(staging, KindTv + ".apk"));
+                File.Move(PartPath(phone.Id), Path.Combine(staging, KindPhone + ".apk"));
+            }
+            catch (FileNotFoundException)
+            {
+                // Published a moment ago from another tab, or cancelled.
+                Directory.Delete(staging, recursive: true);
+                throw new KostvUpdateException(409, "Esos APK ya no están: vuelve a elegirlos.");
+            }
+
             Directory.Move(staging, dir);
 
             index.Versions.Insert(0, version);
@@ -807,9 +817,18 @@ public sealed class KostvInstallLinks
         _now = now ?? (() => DateTimeOffset.UtcNow);
     }
 
+    /// <summary>Letters and digits that can't be mistaken for one another (no 0/O, 1/I/L).</summary>
+    public const string Alphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+
+    /// <summary>
+    /// Short enough to type with a TV remote; 31^8 codes, with guessing slowed per address and
+    /// each code gone in 30 minutes.
+    /// </summary>
+    public const int TokenLength = 8;
+
     public (string Token, DateTimeOffset Expires) Create()
     {
-        var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(18)).Replace('+', '-').Replace('/', '_');
+        var token = string.Concat(Enumerable.Range(0, TokenLength).Select(_ => Alphabet[RandomNumberGenerator.GetInt32(Alphabet.Length)]));
         var expires = _now() + Lifetime;
         lock (_lock)
         {
@@ -840,9 +859,10 @@ public sealed class KostvInstallLinks
                 return Result.TooMany;
             }
 
-            if (_links.TryGetValue(token ?? string.Empty, out var link) && link.Expires > now && link.Uses < MaxUsesPerLink)
+            token = (token ?? string.Empty).ToUpperInvariant();
+            if (_links.TryGetValue(token, out var link) && link.Expires > now && link.Uses < MaxUsesPerLink)
             {
-                _links[token!] = (link.Expires, link.Uses + 1);
+                _links[token] = (link.Expires, link.Uses + 1);
                 return Result.Ok;
             }
 

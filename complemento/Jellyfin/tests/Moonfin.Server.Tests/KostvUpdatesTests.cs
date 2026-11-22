@@ -421,6 +421,15 @@ public class KostvUpdatesTests : IDisposable
         Assert.Equal("KosTV_Android.apk", file.FileDownloadName);
         Assert.True(file.EnableRangeProcessing);
 
+        // The short address the panel shows: «tele» and «movil», and the code in any case.
+        var tele = Assert.IsType<PhysicalFileResult>(controller.Install(token.ToLowerInvariant(), "tele"));
+        Assert.Equal("KosTV_AndroidTV.apk", tele.FileDownloadName);
+        Assert.Equal("KosTV_Android.apk", Assert.IsType<PhysicalFileResult>(controller.Install(token, "movil")).FileDownloadName);
+        var link = Assert.IsType<OkObjectResult>(controller.InstallLink()).Value as KostvUpdatesController.InstallLinkDto;
+        Assert.Matches("^/KosTV/Instalar/[2-9A-HJKMNP-Z]{8}/tele\\.apk$", link!.TvPath);
+        Assert.Matches("^/KosTV/Instalar/[2-9A-HJKMNP-Z]{8}/movil\\.apk$", link.PhonePath);
+        Assert.True(link.Available);
+
         _now = _now.AddMinutes(31);
         Assert.IsType<NotFoundObjectResult>(controller.Install(token, "tv"));
     }
