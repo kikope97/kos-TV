@@ -477,6 +477,18 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
                 "installApk" -> result.success(
                     UpdateInstaller.install(this, call.argument<String>("path") ?: ""),
                 )
+                // Kos TV: reading a 100 MB APK's signature takes a moment, so
+                // off the main thread.
+                "apkSignatureMatches" -> {
+                    val context = applicationContext
+                    val path = call.argument<String>("path") ?: ""
+                    Thread {
+                        val same = runCatching {
+                            UpdateInstaller.signatureMatches(context, path)
+                        }.getOrDefault(false)
+                        runOnUiThread { result.success(same) }
+                    }.start()
+                }
                 // Kos TV: the installed apps (see InstalledApps). Drawing the
                 // banners takes a moment, so the list is built off the main thread.
                 "listInstalledApps" -> {

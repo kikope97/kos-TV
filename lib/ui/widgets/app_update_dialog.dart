@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/services/app_update_service.dart';
 import '../../l10n/app_localizations.dart';
@@ -46,11 +45,14 @@ Future<void> checkAndShowUpdateResult(BuildContext context) async {
 const _platformChannel = MethodChannel('org.moonfin.androidtv/platform');
 
 /// Kos TV: whether [update] is an APK this Android build can download and
-/// install by itself, phones and TVs alike.
+/// install by itself, phones and TVs alike. The service only offers an `.apk`
+/// on the home server, at the address the app reaches it by (plain http only
+/// when the server itself is set up that way, on the LAN).
 bool canInstallUpdateInApp(DesktopUpdateInfo update) =>
     !kIsWeb &&
     Platform.isAndroid &&
-    update.downloadUri.isScheme('https') &&
+    (update.downloadUri.isScheme('https') ||
+        update.downloadUri.isScheme('http')) &&
     update.downloadUri.path.toLowerCase().endsWith('.apk');
 
 Future<void> showAppUpdateDialog(
@@ -66,27 +68,19 @@ Future<void> showAppUpdateDialog(
     showCancel: true,
     builder: (ctx) => Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Kos TV: what is new, as written when it was published on the
+        // server, right in the dialog: on a TV there is no browser to read
+        // it in, and the update no longer has a web page.
+        if (update.notes != null)
+          Flexible(child: UpdateReleaseNotes(notes: update.notes!)),
         if (inApp)
           _UpdateOption(
             icon: Icons.system_update_alt_rounded,
             label: l10n.updateNow,
             value: 'install',
             autofocus: true,
-          )
-        else if (!PlatformDetection.isTV)
-          _UpdateOption(
-            icon: Icons.download_rounded,
-            label: l10n.download,
-            value: 'download',
-          ),
-        // A TV has no browser to read the notes in.
-        if (!PlatformDetection.isTV || !inApp)
-          _UpdateOption(
-            icon: Icons.article_outlined,
-            label: l10n.readReleaseNotes,
-            value: 'notes',
-            autofocus: !inApp,
           ),
       ],
     ),
@@ -96,12 +90,114 @@ Future<void> showAppUpdateDialog(
 
   if (choice == 'install') {
     await _downloadAndInstallAndroidUpdate(context, update);
-    return;
+  }
+}
+
+/// Kos TV: the release notes of an update, in a box that scrolls when they
+/// are long: by touch or the mouse wheel on a phone, and with the remote's
+/// up and down while it has the focus on a TV (it lets the focus move on
+/// once there is no more to scroll that way).
+@visibleForTesting
+class UpdateReleaseNotes extends StatefulWidget {
+  const UpdateReleaseNotes({super.key, required this.notes});
+
+  final String notes;
+
+  @override
+  State<UpdateReleaseNotes> createState() => _UpdateReleaseNotesState();
+}
+
+class _UpdateReleaseNotesState extends State<UpdateReleaseNotes> {
+  final _scroll = ScrollController();
+  bool _focused = false;
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
   }
 
-  final uri =
-      choice == 'notes' ? Uri.parse(update.releaseNotesUrl) : update.downloadUri;
-  await launchUrl(uri, mode: LaunchMode.externalApplication);
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is KeyUpEvent || !_scroll.hasClients) {
+      return KeyEventResult.ignored;
+    }
+    final down = event.logicalKey == LogicalKeyboardKey.arrowDown;
+    final up = event.logicalKey == LogicalKeyboardKey.arrowUp;
+    if (!down && !up) return KeyEventResult.ignored;
+    final position = _scroll.position;
+    if ((down && position.pixels >= position.maxScrollExtent) ||
+        (up && position.pixels <= position.minScrollExtent)) {
+      return KeyEventResult.ignored;
+    }
+    final target = position.pixels + (down ? 80.0 : -80.0);
+    _scroll.animateTo(
+      target.clamp(position.minScrollExtent, position.maxScrollExtent),
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOut,
+    );
+    return KeyEventResult.handled;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final isTv = PlatformDetection.isTV;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.updateWhatsNew,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.white70,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Flexible(
+            child: Focus(
+              // Only a TV needs to reach it with the arrows; elsewhere it is
+              // scrolled by hand and takes no stop of its own.
+              canRequestFocus: isTv,
+              skipTraversal: !isTv,
+              onKeyEvent: _onKey,
+              onFocusChange: (f) => setState(() => _focused = f),
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.4,
+                ),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _focused ? Colors.white54 : Colors.transparent,
+                  ),
+                ),
+                child: Scrollbar(
+                  controller: _scroll,
+                  child: SingleChildScrollView(
+                    controller: _scroll,
+                    child: Text(
+                      widget.notes,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        height: 1.35,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Kos TV: downloads the APK, makes sure the app may install packages (asking
@@ -148,20 +244,12 @@ Future<void> _downloadAndInstallAndroidUpdate(
   try {
     path = await _platformChannel.invokeMethod<String>('updateDownloadPath');
     if (path == null) throw StateError('no download path');
-    await _downloadTo(
-      update.downloadUri,
-      File(path),
-      progress,
-      expectedSize: update.size,
-      expectedSha256: update.sha256,
-    );
+    await downloadAndVerifyUpdate(update, File(path), progress);
   } catch (e) {
     debugPrint('Android in-app update download failed: $e');
     // Kos TV: what came of it is no use, and an APK weighs over 100 MB.
     if (path != null) await _deleteQuietly(File(path));
-    failed.value = e is _UpdateMismatch
-        ? l10n.updateDownloadCorrupt
-        : l10n.updateDownloadFailed;
+    failed.value = updateFailureMessage(l10n, e);
     return;
   } finally {
     _downloadingUpdate = false;
@@ -246,17 +334,69 @@ Future<void> _downloadAndInstallAndroidUpdate(
   );
 }
 
+/// Kos TV: downloads [update] to [file] from the home server, with the
+/// session's token, and makes sure it is the APK the plugin listed (size and
+/// SHA-256) and that it is signed with the same certificate as the app
+/// installed (Android tells: UpdateInstaller.signatureMatches). Throws
+/// otherwise, leaving [file] for the caller to delete.
+@visibleForTesting
+Future<void> downloadAndVerifyUpdate(
+  DesktopUpdateInfo update,
+  File file,
+  ValueNotifier<double?> progress,
+) async {
+  final sha = update.sha256;
+  // The plugin always gives it; an update without one isn't installed.
+  if (sha == null || sha.isEmpty) {
+    throw _UpdateMismatch('no sha256 to check against');
+  }
+  await _downloadTo(
+    update.downloadUri,
+    file,
+    progress,
+    headers: update.downloadHeaders,
+    expectedSize: update.size,
+    expectedSha256: sha,
+  );
+  bool? same;
+  try {
+    same = await _platformChannel.invokeMethod<bool>(
+      'apkSignatureMatches',
+      {'path': file.path},
+    );
+  } on MissingPluginException {
+    same = null;
+  }
+  // Not knowing counts as not the same.
+  if (same != true) throw _UpdateSignatureMismatch();
+}
+
+/// Kos TV: what to tell the person when [error] stopped an update.
+@visibleForTesting
+String updateFailureMessage(AppLocalizations l10n, Object error) =>
+    switch (error) {
+      _UpdateSignatureMismatch() => l10n.updateSignatureMismatch,
+      _UpdateMismatch() => l10n.updateDownloadCorrupt,
+      _ => l10n.updateDownloadFailed,
+    };
+
 Future<void> _downloadTo(
   Uri uri,
   File file,
   ValueNotifier<double?> progress, {
+  Map<String, String> headers = const {},
   int? expectedSize,
   String? expectedSha256,
 }) async {
   if (await file.exists()) await file.delete();
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
   try {
-    final response = await (await client.getUrl(uri)).close().timeout(_quiet);
+    final request = await client.getUrl(uri);
+    // Kos TV: the session's token goes to the home server only, never on to
+    // wherever a redirect might lead.
+    request.followRedirects = false;
+    headers.forEach(request.headers.set);
+    final response = await request.close().timeout(_quiet);
     if (response.statusCode != 200) {
       throw HttpException('status ${response.statusCode}', uri: uri);
     }
@@ -285,8 +425,8 @@ Future<void> _downloadTo(
     if (response.contentLength > 0 && received != response.contentLength) {
       throw HttpException('incomplete download', uri: uri);
     }
-    // Kos TV: what GitHub says the file is, when it says: anything else
-    // isn't installed.
+    // Kos TV: what the plugin says the file is: anything else isn't
+    // installed.
     if (expectedSize != null && received != expectedSize) {
       throw _UpdateMismatch('size $received, expected $expectedSize');
     }
@@ -298,7 +438,7 @@ Future<void> _downloadTo(
   }
 }
 
-/// Kos TV: the download isn't the file the release lists.
+/// Kos TV: the download isn't the file the plugin lists.
 class _UpdateMismatch implements Exception {
   _UpdateMismatch(this.detail);
 
@@ -306,6 +446,13 @@ class _UpdateMismatch implements Exception {
 
   @override
   String toString() => 'Update download mismatch: $detail';
+}
+
+/// Kos TV: the download isn't signed like the app installed (or Android
+/// couldn't tell), so it isn't handed to the installer.
+class _UpdateSignatureMismatch implements Exception {
+  @override
+  String toString() => 'Update signature does not match the installed app';
 }
 
 /// Kos TV: whether an update is downloading now, so the cleanup at start

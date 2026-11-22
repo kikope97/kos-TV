@@ -8,8 +8,9 @@ import '../navigation/app_router.dart';
 import '../navigation/destinations.dart';
 import 'app_update_dialog.dart';
 
-/// Offers a newer GitHub release when the app starts and whenever it comes
-/// back to the foreground, in the update dialog. Draws nothing itself.
+/// Offers a newer version, as the server plugin tells, when the app starts
+/// and whenever it comes back to the foreground, in the update dialog. Draws
+/// nothing itself.
 ///
 /// Kos TV: the floating pill Moonfin showed on desktop is gone, since only the
 /// Android builds update themselves here and they always ask in the dialog,

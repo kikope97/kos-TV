@@ -16054,5 +16054,9 @@
     "kostvMusicStationsCredit": "Las emisoras usan datos públicos de ListenBrainz y Deezer (y de Last.fm si está configurado).",
     "@kostvMusicStationsCredit": {"description": "Kos TV Settings > Music: small line under the Music settings crediting where the stations (Crear emisora, endless play) take their data from; Last.fm's terms ask for it to be named"},
     "kostvPlayerAutoplayHintAll": "Al acabarse la cola, sigue con canciones parecidas, de casa y de fuera",
-    "@kostvPlayerAutoplayHintAll": {"description": "Kos TV music player, «A continuación»: line under «Reproducción automática ∞» with «Toda la música» (similar songs at home and not); with «Solo la de casa», kostvPlayerAutoplayHint"}
+    "@kostvPlayerAutoplayHintAll": {"description": "Kos TV music player, «A continuación»: line under «Reproducción automática ∞» with «Toda la música» (similar songs at home and not); with «Solo la de casa», kostvPlayerAutoplayHint"},
+    "updateWhatsNew": "Novedades",
+    "@updateWhatsNew": {"description": "Kos TV update dialog: heading over the release notes the server plugin gives for the new version"},
+    "updateSignatureMismatch": "La actualización descargada no está firmada como kOS TV, así que no se ha instalado. Avisa a quien lleva el servidor.",
+    "@updateSignatureMismatch": {"description": "Kos TV in-app update: the downloaded APK is not signed with the same certificate as the installed app, so it is refused before the installer opens"}
 }
